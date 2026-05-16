@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@layer base {
+  * { box-sizing: border-box; }
+
+  body {
+    @apply bg-slate-50 text-slate-900 font-sans antialiased;
+  }
+
+  .dark body,
+  .dark {
+    @apply bg-slate-950 text-slate-100;
+  }
+
+  h1 { @apply text-3xl font-bold; }
+  h2 { @apply text-2xl font-semibold; }
+  h3 { @apply text-xl font-semibold; }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { @apply bg-transparent; }
+  ::-webkit-scrollbar-thumb { @apply bg-slate-300 dark:bg-slate-600 rounded-full; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-slate-400 dark:bg-slate-500; }
+
+  /* Rich text / document content */
+  .prose h1 { @apply text-3xl font-bold mt-8 mb-4; }
+  .prose h2 { @apply text-2xl font-semibold mt-6 mb-3; }
+  .prose h3 { @apply text-xl font-semibold mt-4 mb-2; }
+  .prose p  { @apply mb-4 leading-relaxed; }
+  .prose ul { @apply list-disc list-inside mb-4 space-y-1; }
+  .prose ol { @apply list-decimal list-inside mb-4 space-y-1; }
+  .prose code { @apply bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-sm font-mono; }
+  .prose pre  { @apply bg-slate-900 text-slate-100 p-4 rounded-lg overflow-x-auto mb-4; }
+  .prose pre code { @apply bg-transparent p-0; }
+  .prose blockquote { @apply border-l-4 border-primary-500 pl-4 italic text-slate-600 dark:text-slate-400 my-4; }
+  .prose a { @apply text-primary-600 dark:text-primary-400 hover:underline; }
+  .prose table { @apply w-full border-collapse mb-4; }
+  .prose th { @apply bg-slate-100 dark:bg-slate-800 text-left px-3 py-2 text-sm font-semibold border border-slate-200 dark:border-slate-700; }
+  .prose td { @apply px-3 py-2 text-sm border border-slate-200 dark:border-slate-700; }
+}
+
+@layer components {
+  .page-title {
+    @apply text-2xl font-bold text-slate-900 dark:text-white;
+  }
+  .card {
+    @apply bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl;
+  }
+  .input-base {
+    @apply w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm transition;
+  }
+}

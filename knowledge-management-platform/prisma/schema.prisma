@@ -1,0 +1,594 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  PRODUCT_MANAGER
+  PROJECT_MANAGER
+  BUSINESS_ANALYST
+  BACKEND_DEVELOPER
+  UI_UX_DESIGNER
+  QA_ENGINEER
+  EMPLOYEE
+}
+
+enum DocumentType {
+  FUNCTIONAL
+  TECHNICAL
+  API_DOC
+  UI_UX
+  QA
+  RELEASE_NOTE
+  TRAINING
+  GENERAL
+}
+
+enum LessonType {
+  TEXT
+  VIDEO
+  QUIZ
+}
+
+enum ProjectStatus {
+  PLANNING
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  ARCHIVED
+}
+
+enum ModuleStatus {
+  ACTIVE
+  DEPRECATED
+  IN_DEVELOPMENT
+}
+
+enum QuestionType {
+  MCQ
+  DESCRIPTIVE
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+}
+
+// ─────────────────────────────────────────────
+// User
+// ─────────────────────────────────────────────
+
+model User {
+  id          String    @id @default(cuid())
+  email       String    @unique
+  name        String?
+  password    String
+  role        Role      @default(EMPLOYEE)
+  avatar      String?
+  department  String?
+  designation String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  articles           Article[]
+  documents          Document[]
+  docVersions        DocumentVersion[]
+  courses            Course[]            @relation("CourseInstructor")
+  ownedProducts      Product[]           @relation("ProductOwner")
+  ownedModules       Module[]            @relation("ModuleOwner")
+  projectMemberships ProjectMember[]
+  enrollments        Enrollment[]
+  assignedCourses    Enrollment[]        @relation("CourseAssigner")
+  progress           Progress[]
+  assessmentAttempts AssessmentAttempt[]
+  activities         Activity[]
+}
+
+// ─────────────────────────────────────────────
+// Organization Hierarchy
+// ─────────────────────────────────────────────
+
+model Platform {
+  id               String    @id @default(cuid())
+  name             String    @unique
+  slug             String    @unique
+  description      String?
+  logo             String?
+
+  // CMS Content
+  shortDescription String?
+  fullDescription  String?   @db.Text
+  overviewText     String?   @db.Text
+  bannerImage      String?
+  introVideo       String?
+  galleryImages    String[]
+  brochureUrls     String[]
+
+  // SEO
+  metaTitle        String?
+  metaDescription  String?
+  keywords         String[]
+
+  products         Product[]
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+model Product {
+  id               String    @id @default(cuid())
+  name             String
+  slug             String    @unique
+  description      String?
+  techStack        String[]
+  status           String    @default("active")
+  platformId       String
+  platform         Platform  @relation(fields: [platformId], references: [id])
+  ownerId          String?
+  owner            User?     @relation("ProductOwner", fields: [ownerId], references: [id])
+
+  // CMS Content
+  shortDescription String?
+  fullDescription  String?   @db.Text
+  overviewText     String?   @db.Text
+  bannerImage      String?
+  introVideo       String?
+  galleryImages    String[]
+  brochureUrls     String[]
+
+  // SEO
+  metaTitle        String?
+  metaDescription  String?
+  keywords         String[]
+
+  projects             Project[]
+  documents            Document[]
+  tags                 Tag[]               @relation("ProductTags")
+  productFeatures      ProductFeature[]
+  mediaItems           MediaItem[]
+  useCases             UseCase[]
+  architectureSections ArchitectureSection[]
+  downloads            Download[]
+  faqs                 FAQ[]
+
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+model Project {
+  id               String        @id @default(cuid())
+  name             String
+  slug             String        @unique
+  description      String?
+  clientName       String?
+  status           ProjectStatus @default(ACTIVE)
+  startDate        DateTime?
+  endDate          DateTime?
+  productId        String
+  product          Product       @relation(fields: [productId], references: [id])
+
+  // CMS Content
+  shortDescription String?
+  fullDescription  String?       @db.Text
+  overviewText     String?       @db.Text
+  bannerImage      String?
+
+  // SEO
+  metaTitle        String?
+  metaDescription  String?
+  keywords         String[]
+
+  members              ProjectMember[]
+  modules              Module[]
+  documents            Document[]
+  environments         Environment[]
+  tags                 Tag[]               @relation("ProjectTags")
+  useCases             UseCase[]
+  architectureSections ArchitectureSection[]
+  downloads            Download[]
+  faqs                 FAQ[]
+
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+}
+
+model ProjectMember {
+  id        String  @id @default(cuid())
+  userId    String
+  user      User    @relation(fields: [userId], references: [id])
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id])
+  roleLabel String
+
+  @@unique([userId, projectId])
+}
+
+model Environment {
+  id        String  @id @default(cuid())
+  name      String
+  url       String?
+  notes     String?
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model Module {
+  id          String       @id @default(cuid())
+  name        String
+  slug        String       @unique
+  description String?
+  status      ModuleStatus @default(ACTIVE)
+  projectId   String
+  project     Project      @relation(fields: [projectId], references: [id])
+  ownerId     String?
+  owner       User?        @relation("ModuleOwner", fields: [ownerId], references: [id])
+  parentId    String?
+  parent      Module?      @relation("SubModules", fields: [parentId], references: [id])
+  subModules  Module[]     @relation("SubModules")
+  features    Feature[]
+  documents   Document[]
+  assessments Assessment[]
+  tags        Tag[]        @relation("ModuleTags")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Feature {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  description String?
+  status      String    @default("active")
+  moduleId    String
+  module      Module    @relation(fields: [moduleId], references: [id])
+  documents   Document[]
+  tags        Tag[]     @relation("FeatureTags")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// ─────────────────────────────────────────────
+// CMS — Product Features (directly under Product)
+// ─────────────────────────────────────────────
+
+model ProductFeature {
+  id              String    @id @default(cuid())
+  name            String
+  slug            String    @unique
+  overview        String?   @db.Text
+  details         String?   @db.Text
+  coverImage      String?
+  status          String    @default("active")
+  order           Int       @default(0)
+  productId       String
+  product         Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  // SEO
+  metaTitle       String?
+  metaDescription String?
+  keywords        String[]
+
+  mediaItems           MediaItem[]
+  useCases             UseCase[]
+  architectureSections ArchitectureSection[]
+  downloads            Download[]
+  faqs                 FAQ[]
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+// ─────────────────────────────────────────────
+// CMS — Shared Content Models
+// ─────────────────────────────────────────────
+
+model MediaItem {
+  id               String          @id @default(cuid())
+  title            String?
+  url              String
+  type             MediaType       @default(IMAGE)
+  description      String?
+  order            Int             @default(0)
+
+  productId        String?
+  product          Product?        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productFeatureId String?
+  productFeature   ProductFeature? @relation(fields: [productFeatureId], references: [id], onDelete: Cascade)
+
+  createdAt        DateTime        @default(now())
+}
+
+model UseCase {
+  id               String          @id @default(cuid())
+  title            String
+  description      String          @db.Text
+  icon             String?
+  order            Int             @default(0)
+
+  productId        String?
+  product          Product?        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productFeatureId String?
+  productFeature   ProductFeature? @relation(fields: [productFeatureId], references: [id], onDelete: Cascade)
+  projectId        String?
+  project          Project?        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+}
+
+model ArchitectureSection {
+  id               String          @id @default(cuid())
+  title            String
+  description      String?         @db.Text
+  imageUrl         String?
+  order            Int             @default(0)
+
+  productId        String?
+  product          Product?        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productFeatureId String?
+  productFeature   ProductFeature? @relation(fields: [productFeatureId], references: [id], onDelete: Cascade)
+  projectId        String?
+  project          Project?        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+}
+
+model Download {
+  id               String          @id @default(cuid())
+  name             String
+  description      String?
+  fileUrl          String
+  fileType         String?
+  fileSize         String?
+  order            Int             @default(0)
+
+  productId        String?
+  product          Product?        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productFeatureId String?
+  productFeature   ProductFeature? @relation(fields: [productFeatureId], references: [id], onDelete: Cascade)
+  projectId        String?
+  project          Project?        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  createdAt        DateTime        @default(now())
+}
+
+model FAQ {
+  id               String          @id @default(cuid())
+  question         String
+  answer           String          @db.Text
+  order            Int             @default(0)
+
+  productId        String?
+  product          Product?        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productFeatureId String?
+  productFeature   ProductFeature? @relation(fields: [productFeatureId], references: [id], onDelete: Cascade)
+  projectId        String?
+  project          Project?        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+}
+
+// ─────────────────────────────────────────────
+// Taxonomy
+// ─────────────────────────────────────────────
+
+model Tag {
+  id        String     @id @default(cuid())
+  name      String     @unique
+  articles  Article[]  @relation("ArticleTags")
+  courses   Course[]   @relation("CourseTags")
+  documents Document[] @relation("DocumentTags")
+  products  Product[]  @relation("ProductTags")
+  projects  Project[]  @relation("ProjectTags")
+  modules   Module[]   @relation("ModuleTags")
+  features  Feature[]  @relation("FeatureTags")
+}
+
+model Category {
+  id       String    @id @default(cuid())
+  name     String    @unique
+  slug     String    @unique
+  articles Article[]
+  courses  Course[]
+}
+
+// ─────────────────────────────────────────────
+// Documentation
+// ─────────────────────────────────────────────
+
+model Document {
+  id        String       @id @default(cuid())
+  title     String
+  slug      String       @unique
+  content   String       @db.Text
+  excerpt   String?
+  type      DocumentType @default(GENERAL)
+  published Boolean      @default(false)
+  version   Int          @default(1)
+
+  productId String?
+  product   Product?   @relation(fields: [productId], references: [id])
+  projectId String?
+  project   Project?   @relation(fields: [projectId], references: [id])
+  moduleId  String?
+  module    Module?    @relation(fields: [moduleId], references: [id])
+  featureId String?
+  feature   Feature?   @relation(fields: [featureId], references: [id])
+
+  authorId String
+  author   User       @relation(fields: [authorId], references: [id])
+  tags     Tag[]      @relation("DocumentTags")
+  versions DocumentVersion[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model DocumentVersion {
+  id         String   @id @default(cuid())
+  version    Int
+  content    String   @db.Text
+  changeNote String?
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  authorId   String
+  author     User     @relation(fields: [authorId], references: [id])
+  createdAt  DateTime @default(now())
+}
+
+// ─────────────────────────────────────────────
+// Knowledge Base
+// ─────────────────────────────────────────────
+
+model Article {
+  id         String    @id @default(cuid())
+  title      String
+  slug       String    @unique
+  content    String    @db.Text
+  excerpt    String?
+  published  Boolean   @default(false)
+  authorId   String
+  author     User      @relation(fields: [authorId], references: [id])
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id])
+  tags       Tag[]     @relation("ArticleTags")
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+// ─────────────────────────────────────────────
+// LMS
+// ─────────────────────────────────────────────
+
+model Course {
+  id           String         @id @default(cuid())
+  title        String
+  slug         String         @unique
+  description  String?
+  thumbnail    String?
+  published    Boolean        @default(false)
+  instructorId String
+  instructor   User           @relation("CourseInstructor", fields: [instructorId], references: [id])
+  categoryId   String?
+  category     Category?      @relation(fields: [categoryId], references: [id])
+  tags         Tag[]          @relation("CourseTags")
+  courseModules CourseModule[]
+  enrollments  Enrollment[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+}
+
+model CourseModule {
+  id       String   @id @default(cuid())
+  title    String
+  order    Int
+  courseId String
+  course   Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons  Lesson[]
+}
+
+model Lesson {
+  id             String       @id @default(cuid())
+  title          String
+  content        String       @db.Text
+  order          Int
+  type           LessonType   @default(TEXT)
+  courseModuleId String
+  courseModule   CourseModule @relation(fields: [courseModuleId], references: [id], onDelete: Cascade)
+  progress       Progress[]
+}
+
+model Enrollment {
+  id          String    @id @default(cuid())
+  userId      String
+  courseId    String
+  user        User      @relation(fields: [userId], references: [id])
+  course      Course    @relation(fields: [courseId], references: [id])
+  assignedBy  String?
+  assigner    User?     @relation("CourseAssigner", fields: [assignedBy], references: [id])
+  dueDate     DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@unique([userId, courseId])
+}
+
+model Progress {
+  id        String   @id @default(cuid())
+  userId    String
+  lessonId  String
+  completed Boolean  @default(false)
+  user      User     @relation(fields: [userId], references: [id])
+  lesson    Lesson   @relation(fields: [lessonId], references: [id])
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, lessonId])
+}
+
+// ─────────────────────────────────────────────
+// Assessments
+// ─────────────────────────────────────────────
+
+model Assessment {
+  id           String              @id @default(cuid())
+  title        String
+  description  String?
+  passingScore Int                 @default(70)
+  timeLimit    Int?
+  moduleId     String?
+  module       Module?             @relation(fields: [moduleId], references: [id])
+  questions    Question[]
+  attempts     AssessmentAttempt[]
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+}
+
+model Question {
+  id           String       @id @default(cuid())
+  text         String
+  type         QuestionType @default(MCQ)
+  options      String[]
+  answer       String?
+  marks        Int          @default(1)
+  assessmentId String
+  assessment   Assessment   @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+}
+
+model AssessmentAttempt {
+  id           String     @id @default(cuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id])
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id])
+  score        Int?
+  passed       Boolean?
+  answers      Json?
+  completedAt  DateTime?
+  createdAt    DateTime   @default(now())
+}
+
+// ─────────────────────────────────────────────
+// Audit
+// ─────────────────────────────────────────────
+
+model Activity {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  action    String
+  entity    String
+  entityId  String?
+  meta      Json?
+  createdAt DateTime @default(now())
+}
